@@ -6,14 +6,14 @@ class DES_CIPHER:
      key = get_random_bytes(8)  # Clave aleatoria de 64 bits
      IV = get_random_bytes(8) # IV aleatorio de 64 bits
 
- def cifrar(self, cadena, IV):
+ def cifrar_CBC(self, cadena, IV):
      # Creamos un mecanismo de cifrado DES en modo CBC con una inicializacion IV
      cipher = DES.new(key, DES.MODE_CBC, IV)
 
      # Ciframos, haciendo que data sea multiplo del tamaño de bloque
      ciphertext = cipher.encrypt(pad(data, BLOCK_SIZE_DES))
 
- def descifrar(self, cifrado, IV):
+ def descifrar_CBC(self, cifrado, IV):
      # Creamos un mecanismo de (des)cifrado DES en modo CBC con una inicializacion IV
      # Ambos, cifrado y descifrado, se crean de la misma forma
      decipher_des = DES.new(key, DES.MODE_CBC, IV)
@@ -26,5 +26,5 @@ IV = get_random_bytes(8) # IV aleatorio de 64 bits
 
 datos = "Hola Mundo con DES en modo CBC"
 d = DES_CIPHER(key)
-cifrado = d.cifrar(datos, IV)
-descifrado = d.descifrar(cifrado, IV)
+cifrado = d.cifrar_CBC(datos, IV)
+descifrado = d.descifrar_CBC(cifrado, IV)
