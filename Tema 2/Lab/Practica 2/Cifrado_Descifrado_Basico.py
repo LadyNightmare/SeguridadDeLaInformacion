@@ -21,7 +21,6 @@ ciphertext = cipher.encrypt(pad(data,BLOCK_SIZE_DES))
 print(ciphertext)
 encoded_ciphertext = base64.b64encode(ciphertext)
 print(encoded_ciphertext)
-
 # Creamos un mecanismo de (des)cifrado DES en modo CBC con una inicializacion IV
 # Ambos, cifrado y descifrado, se crean de la misma forma
 decipher_des = DES.new(key, DES.MODE_CBC, IV)
