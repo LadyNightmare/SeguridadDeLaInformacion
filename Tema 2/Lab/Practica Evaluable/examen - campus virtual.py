@@ -18,7 +18,7 @@ print("#========================")
 # alumno en base a la informacion proporcionada.
 
 # Ejercicio
-#----------
+#----------z
 BLOCK_SIZE = 16 
 key = b'0123456789ABCDEF' # Que mecanismo criptografico usa 128 bits como clave secreta...
 ciphertext = b"'\xa8\x08\x89(\xe2\x81\x9c9\x98\xeb\xb0n\x16<\x04\x93:\xdaBX\xb8dP\x99\x9a?s\x85u&\xa6\xaf\xecx\xfeoo\xc2\xa4\xc4\xc2I\t&\xb0t\xafn&\x04\x9e\xfb'\xbd\x9e\xaaw\x0f\xe3Jq\xc5\xae@\x82p\x82:86\xf5k\xc3\xae\xda\x01UD!"
