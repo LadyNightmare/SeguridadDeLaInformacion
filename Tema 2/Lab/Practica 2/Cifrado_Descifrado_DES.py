@@ -26,15 +26,19 @@ class DES_CIPHER:
         decipher_des = DES.new(key, DES.MODE_CBC, IV)
 
         # Desciframos, eliminamos el padding, y recuperamos la cadena
-        new_data = unpad(decipher_des.decrypt(ciphertext), self.BLOCK_SIZE_DES).decode("utf-8", "ignore")
+        new_data = unpad(decipher_des.decrypt(cifrado), self.BLOCK_SIZE_DES).decode("utf-8", "ignore")
 
         return new_data
 
 key = get_random_bytes(8) # Clave aleatoria de 64 bits
 IV = get_random_bytes(8) # IV aleatorio de 64 bits
-datos = "Hola Mundo con DES en modo CBC"
+datos = "Hola Mundo con DES en modo CBC".encode("utf-8")
+print(datos)
 d = DES_CIPHER(key)
 cifrado = d.cifrar_CBC(datos, IV)
+print(cifrado)
 encoded_ciphertext = base64.b64encode(cifrado)
+print(encoded_ciphertext)
 descifrado = d.descifrar_CBC(cifrado, IV)
+print(descifrado)
 
