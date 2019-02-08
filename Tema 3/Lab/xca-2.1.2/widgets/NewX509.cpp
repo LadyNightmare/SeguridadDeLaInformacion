@@ -1,0 +1,1366 @@
+/* vi: set sw=4 ts=4:
+ *
+ * Copyright (C) 2001 - 2014 Christian Hohnstaedt.
+ *
+ * All rights reserved.
+ */
+
+
+#include "NewX509.h"
+#include <QCheckBox>
+#include <QComboBox>
+#include <QRadioButton>
+#include <QMessageBox>
+#include <QLineEdit>
+#include <QLabel>
+#include <QPushButton>
+#include <QPixmap>
+#include <QPushButton>
+#include <QValidator>
+#include <QMap>
+#include <QPair>
+#include "MainWindow.h"
+#include "v3ext.h"
+#include "lib/x509name.h"
+#include "lib/db_key.h"
+#include "lib/db_x509req.h"
+#include "lib/db_x509.h"
+#include "lib/db_temp.h"
+#include "lib/oid.h"
+#include "lib/func.h"
+
+void NewX509::setupExplicitDN(NIDlist my_dn_nid = NIDlist())
+{
+	NIDlist expl_dn_nid;
+
+	/* Create configured explicit_dn list */
+	if (!Settings["explicit_dn"].empty()) {
+		foreach(QString dn, Settings["explicit_dn"].split(",")) {
+			int nid = OBJ_sn2nid(CCHAR(dn));
+			if (!my_dn_nid.contains(nid))
+				expl_dn_nid << nid;
+		}
+	}
+	nameEdits = setupExplicitInputs(my_dn_nid + expl_dn_nid,
+					dnWidget, description, 2);
+}
+
+QList<nameEdit> NewX509::setupExplicitInputs(NIDlist nid_list,
+			QWidget *parent, QWidget *old, int columns)
+{
+	QList<nameEdit> edits;
+	QGridLayout *layout = dynamic_cast<QGridLayout *>(parent->layout());
+	if (layout) {
+		QLayoutItem *child;
+		while ((child = layout->takeAt(0))) {
+			delete child->widget();
+			delete child;
+		}
+	} else {
+		layout = new QGridLayout(parent);
+		layout->setAlignment(Qt::AlignTop);
+		layout->setSpacing(6);
+		layout->setMargin(0);
+	}
+	int n = 0, col = 0;
+
+	foreach(int nid, nid_list) {
+		DoubleClickLabel *label;
+		QLineEdit *edit;
+		QString trans = dn_translations[nid];
+		QString ln = OBJ_nid2ln(nid), sn = OBJ_nid2sn(nid);
+		label = new DoubleClickLabel(parent);
+		if (Settings["translate_dn"] && !trans.isEmpty()) {
+			label->setText(trans);
+			label->setToolTip(QString("[%1] %2").arg(sn, ln));
+			if (sn == ln)
+				label->setToolTip(ln);
+		} else {
+			label->setText(ln);
+			label->setToolTip(QString("[%1] %2").arg(sn, trans));
+			if (trans == sn)
+				label->setToolTip(trans);
+		}
+		label->setClickText(OBJ_nid2sn(nid));
+		connect(label, SIGNAL(doubleClicked(QString)),
+                        MainWindow::getResolver(), SLOT(searchOid(QString)));
+		edit = new QLineEdit(parent);
+		setupLineEditByNid(nid, edit);
+		edits << nameEdit(nid, edit, label);
+
+		layout->addWidget(label, n, col);
+		layout->addWidget(edit, n, col +1);
+		n++;
+		if (n > (nid_list.size()-1)/columns) {
+			col += 2;
+			n = 0;
+		}
+		QWidget::setTabOrder(old, edit);
+		old = edit;
+	}
+	return edits;
+}
+
+NewX509::NewX509(QWidget *parent)
+	:QDialog(parent)
+{
+	int i;
+	eku_nid = *MainWindow::eku_nid;
+	dn_nid = *MainWindow::dn_nid;
+	aia_nid << OBJ_sn2nid("OCSP") << OBJ_sn2nid("caIssuers");
+	attr_nid << NID_pkcs9_unstructuredName << NID_pkcs9_challengePassword;
+	QStringList keys;
+
+	setupUi(this);
+
+	/* temporary storage for creating temporary X509V3_CTX */
+	ctx_cert = NULL;
+	pkiSource = generated;
+	foreach(int nid, dn_nid)
+		keys << QString(OBJ_nid2ln(nid));
+
+	extDNlist->setKeys(keys);
+	extDNlist->setInfoLabel(extDNinfo);
+	connect(extDNlist->itemDelegateForColumn(1),
+		SIGNAL(setupLineEdit(const QString &, QLineEdit *)),
+		this, SLOT(setupExtDNwidget(const QString &, QLineEdit *)));
+	connect(subAltName, SIGNAL(textChanged(const QString &)),
+                this, SLOT(checkSubAltName(const QString &)));
+	connect(issAltName, SIGNAL(textChanged(const QString &)),
+                this, SLOT(checkIssAltName(const QString &)));
+	connect(crlDist, SIGNAL(textChanged(const QString &)),
+                this, SLOT(checkCrlDist(const QString &)));
+	connect(authInfAcc, SIGNAL(textChanged(const QString &)),
+                this, SLOT(checkAuthInfAcc(const QString &)));
+
+	setWindowTitle(XCA_TITLE);
+
+	for (i=0; i<tabWidget->count(); i++) {
+		tabnames << tabWidget->tabText(i);
+	}
+
+	nsImg->setPixmap(*MainWindow::nsImg);
+
+	// are there any useable private keys  ?
+	newKeyDone(NULL);
+
+	// any PKCS#10 requests to be used ?
+	QList<pki_x509req *> requests = MainWindow::reqs->getAllRequests();
+	if (requests.isEmpty()) {
+		fromReqCB->setDisabled(true);
+		fromReqCB->setChecked(false);
+	}
+	else {
+		reqList->insertPkiItems(requests);
+	}
+	on_fromReqCB_clicked();
+
+	// How about signing certificates ?
+	QList<pki_x509*> issuers = MainWindow::certs->getAllIssuers();
+	if (issuers.isEmpty()) {
+		foreignSignRB->setDisabled(true);
+	} else {
+		certList->insertPkiItems(issuers);
+	}
+
+	// set dates to now and now + 1 year
+	validN->setText("1");
+	validRange->setCurrentIndex(2);
+	on_applyTime_clicked();
+
+	// settings for the templates ....
+	tempList->insertPkiItems(MainWindow::temps->getAllAndPredefs());
+
+	// setup Extended keyusage
+	foreach(int nid, eku_nid)
+		ekeyUsage->addItem(OBJ_nid2ln(nid));
+
+	// setup Authority Info Access
+	foreach(int nid, aia_nid)
+		aiaOid->addItem(OBJ_nid2ln(nid));
+
+	// init the X509 v3 context
+	X509V3_set_ctx(&ext_ctx, NULL , NULL, NULL, NULL, 0);
+	X509V3_set_ctx_nodb(&ext_ctx);
+
+	// Setup dnWidget
+	setupExplicitDN();
+
+	// Setup Request Attributes
+	attrEdits = setupExplicitInputs(attr_nid, attrWidget, reqSubChange, 1);
+
+	// last polish
+	on_certList_currentIndexChanged(0);
+	certList->setDisabled(true);
+	tabWidget->setCurrentIndex(0);
+	attrWidget->hide();
+	pt = none;
+	notAfter->setEndDate(true);
+
+	QMap<int, DoubleClickLabel*> nidLabel;
+	nidLabel[NID_subject_alt_name] = sanLbl;
+	nidLabel[NID_issuer_alt_name] = ianLbl;
+	nidLabel[NID_crl_distribution_points] = crldpLbl;
+	nidLabel[NID_info_access] = aiaLbl;
+	nidLabel[NID_netscape_base_url] = nsBaseLbl;
+	nidLabel[NID_netscape_revocation_url] = nsRevLbl;
+	nidLabel[NID_netscape_ca_revocation_url] = nsCaRevLbl;
+	nidLabel[NID_netscape_renewal_url] = nsRenewLbl;
+	nidLabel[NID_netscape_ca_policy_url] = nsCaPolicyLbl;
+	nidLabel[NID_netscape_ssl_server_name] = nsSslServerLbl;
+	nidLabel[NID_netscape_comment] = nsCommentLbl;
+
+	foreach(int nid, nidLabel.keys()) {
+		DoubleClickLabel *l = nidLabel[nid];
+		l->setText(Settings["translate_dn"] ?
+			dn_translations[nid] : OBJ_nid2ln(nid));
+		if (l->toolTip().isEmpty()) {
+			l->setToolTip(Settings["translate_dn"] ?
+				OBJ_nid2ln(nid) : dn_translations[nid]);
+		}
+		l->setClickText(OBJ_nid2sn(nid));
+		connect(l, SIGNAL(doubleClicked(QString)),
+                        MainWindow::getResolver(), SLOT(searchOid(QString)));
+	}
+
+	QMap<int, QGroupBox*> nidGroupBox;
+	nidGroupBox[NID_basic_constraints] = bcBox;
+	nidGroupBox[NID_key_usage] = kuBox;
+	nidGroupBox[NID_ext_key_usage] = ekuBox;
+	nidGroupBox[NID_netscape_cert_type] = nsCertTypeBox;
+
+	foreach(int nid, nidGroupBox.keys()) {
+		QGroupBox *g = nidGroupBox[nid];
+		g->setTitle(Settings["translate_dn"] ?
+			dn_translations[nid] : OBJ_nid2ln(nid));
+		if (g->toolTip().isEmpty()) {
+			g->setToolTip(Settings["translate_dn"] ?
+				OBJ_nid2ln(nid) : dn_translations[nid]);
+		}
+	}
+
+	if (Settings["translate_dn"]) {
+		QList<QGroupBox*> gb;
+		gb << distNameBox << keyIdentBox;
+		foreach(QGroupBox *g, gb) {
+			QString tt = g->toolTip();
+			g->setToolTip(g->title());
+			g->setTitle(tt);
+		}
+		QList<QCheckBox*> cbList;
+		cbList << bcCritical << kuCritical << ekuCritical;
+		foreach(QCheckBox* cb, cbList) {
+			cb->setText(tr("Critical"));
+		}
+	}
+	if (Settings["disable_netscape"])
+		tabWidget->removeTab(4);
+
+	// Setup widget <-> Template mapping
+#define MAP_LE(name) templateLineEdits[#name] = name;
+	MAP_LE(subAltName);
+	MAP_LE(issAltName);
+	MAP_LE(crlDist);
+	MAP_LE(nsComment);
+	MAP_LE(nsBaseUrl);
+	MAP_LE(nsRevocationUrl);
+	MAP_LE(nsCARevocationUrl);
+	MAP_LE(nsRenewalUrl);
+	MAP_LE(nsCaPolicyUrl);
+	MAP_LE(nsSslServerName);
+	MAP_LE(validN);
+	MAP_LE(basicPath);
+
+#define MAP_CB(name) templateCheckBoxes[#name] = name;
+	MAP_CB(bcCritical);
+	MAP_CB(kuCritical);
+	MAP_CB(ekuCritical);
+	MAP_CB(subKey);
+	MAP_CB(authKey);
+	MAP_CB(validMidn);
+	MAP_CB(noWellDefinedExpDate);
+}
+
+void NewX509::setRequest()
+{
+	reqWidget->hide();
+	attrWidget->show();
+
+	signerBox->setEnabled(false);
+	timewidget->setEnabled(false);
+	capt->setText(tr("Create Certificate signing request"));
+	authKey->setEnabled(false);
+	setImage(MainWindow::csrImg);
+	pt = x509_req;
+}
+
+NewX509::~NewX509()
+{
+	if (ctx_cert)
+		delete(ctx_cert);
+}
+
+void NewX509::setupExtDNwidget(const QString &s, QLineEdit *l)
+{
+	setupLineEditByNid(OBJ_txt2nid(CCHAR(s)), l);
+}
+
+void NewX509::setupLineEditByNid(int nid, QLineEdit *l)
+{
+	ASN1_STRING_TABLE *tab = ASN1_STRING_TABLE_get(nid);
+	QValidator *validator = NULL;
+	QStringList info;
+
+	info << QString("[%1]").arg(OBJ_nid2sn(nid));
+
+	if (tab) {
+		if (tab->minsize > 1)
+			info << tr("minimum size: %1").arg(tab->minsize);
+		if (tab->maxsize != -1)
+			info << tr("maximum size: %1").arg(tab->maxsize);
+		if (tab->mask == B_ASN1_PRINTABLESTRING) {
+			info << tr("only a-z A-Z 0-9 '()+,-./:=?");
+			QRegExp rx("[a-zA-Z0-9'()+,-./:=?]+");
+			validator = new QRegExpValidator(rx, this);
+		} else if (tab->mask == B_ASN1_IA5STRING) {
+			info << tr("only 7-bit clean characters");
+		}
+	}
+	l->setToolTip(info.join(" "));
+	l->setValidator(validator);
+}
+
+void NewX509::getReqAttributes(pki_x509req *req)
+{
+	foreach(nameEdit e, attrEdits) {
+		req->addAttribute(e.nid, e.edit->text());
+	}
+}
+
+void NewX509::setReqAttributes(pki_x509req *req)
+{
+	foreach(nameEdit e, attrEdits) {
+		e.edit->setText(req->getAttribute(e.nid));
+	}
+}
+
+/* Initialize dialog for Template creation */
+void NewX509::setTemp(pki_temp *temp)
+{
+	description->setText(temp->getIntName());
+	capt->setText(tr("Edit XCA template"));
+	tabWidget->removeTab(0);
+	privKeyBox->setEnabled(false);
+	validityBox->setEnabled(false);
+	setImage(MainWindow::tempImg);
+	pt = tmpl;
+	fromTemplate(temp);
+	comment->setPlainText(temp->getComment());
+}
+
+/* Initialize dialog for Certificate creation */
+void NewX509::setCert()
+{
+	capt->setText(tr("Create x509 Certificate"));
+	setImage(MainWindow::certImg);
+	pt = x509;
+}
+
+void NewX509::setImage(QPixmap *img)
+{
+	image->setPixmap(*img);
+}
+
+/* Select a template and apply it */
+void NewX509::defineTemplate(pki_temp *temp)
+{
+	fromTemplate(temp);
+	templateChanged(temp);
+	pkiSource = transformed;
+}
+
+/* Select a Request for signing it */
+void NewX509::defineRequest(pki_x509req *req)
+{
+	fromReqCB->setEnabled(true);
+	fromReqCB->setChecked(true);
+	reqList->setCurrentPkiItem(req);
+	pkiSource = transformed;
+	on_fromReqCB_clicked();
+}
+
+/* Preset all values from another request to create a similar one */
+void NewX509::fromX509super(pki_x509super *cert_or_req, bool applyTemp)
+{
+	pki_temp *temp = new pki_temp("");
+	temp->fromCert(cert_or_req);
+	defineTemplate(temp);
+	delete temp;
+
+	description->setText(cert_or_req->getIntName());
+	pki_key *key = cert_or_req->getRefKey();
+	if (key) {
+		usedKeysToo->setChecked(true);
+		keyList->setCurrentPkiItem(key);
+	}
+	hashAlgo->setCurrentMD(cert_or_req->getDigest());
+
+	switch(cert_or_req->getType()) {
+	case x509: {
+		pki_x509 *cert = (pki_x509*)cert_or_req;
+		pki_x509 *signer = cert->getSigner();
+		if (signer == cert) {
+			foreignSignRB->setChecked(false);
+		} else if (signer) {
+			defineSigner(signer, applyTemp);
+		}
+		notBefore->setDate(cert->getNotBefore());
+		notAfter->setDate(cert->getNotAfter());
+		break;
+	}
+	case x509_req: {
+		pki_x509req *req = (pki_x509req*)cert_or_req;
+		setReqAttributes(req);
+		break;
+	}
+	default:
+		break;
+	}
+
+}
+
+pki_temp *NewX509::caTemplate(pki_x509 *ca) const
+{
+	QVariant sqlId = ca->getTemplateSqlId();
+	if (!sqlId.isValid())
+		return NULL;
+	return MainWindow::temps->lookupPki<pki_temp>(sqlId);
+}
+
+/* Preset the signing certificate */
+void NewX509::defineSigner(pki_x509 *defcert, bool applyTemp)
+{
+	// suggested from: Andrey Brindeew <abr@abr.pp.ru>
+	if (defcert && defcert->canSign() ) {
+		if (certList->setCurrentPkiItem(defcert) != -1) {
+			foreignSignRB->setChecked(true);
+			certList->setEnabled(true);
+			if (applyTemp &&
+			    defcert->getTemplateSqlId().isValid())
+			{
+				on_applyTemplate_clicked();
+			}
+		}
+	}
+}
+
+static int lb2int(QListWidget *lb)
+{
+	int i, x=0, c=lb->count();
+	QListWidgetItem *item;
+
+	for (i=0; i<c; i++) {
+		item = lb->item(i);
+		if (lb->isItemSelected(item)){
+			x |= 1<<i;
+		}
+	}
+	return x;
+}
+
+static void int2lb(QListWidget *lb, int x)
+{
+	int i, c=lb->count();
+	QListWidgetItem *item;
+
+	for (i=0; i<c; i++) {
+		item = lb->item(i);
+		lb->setItemSelected(item, (1<<i) & x);
+	}
+}
+
+static void QString2lb(QListWidget *lb, QString x)
+{
+	QStringList li = x.split(", ");
+	QList<QListWidgetItem *> items;
+
+	for (int i=0; i<li.size(); i++) {
+		QString lname = OBJ_sn2ln(CCHAR(li[i]));
+		items = lb->findItems(lname, Qt::MatchExactly);
+		if (items.size() > 0)
+			lb->setItemSelected(items[0], 1);
+	}
+}
+
+static QString lb2QString(QListWidget *lb)
+{
+	QStringList sl;
+
+	for (int i=0; i<lb->count(); i++) {
+		QListWidgetItem *item = lb->item(i);
+		if (lb->isItemSelected(item)) {
+			sl << QString(OBJ_ln2sn(CCHAR(item->text())));
+		}
+	}
+	return sl.join(", ");
+}
+
+void NewX509::subjectFromTemplate(pki_temp *temp)
+{
+	if (temp)
+		setX509name(temp->getSubject());
+}
+
+
+void NewX509::extensionsFromTemplate(pki_temp *temp)
+{
+	if (!temp)
+		return;
+
+	QMapIterator<QString, QLineEdit*> l(templateLineEdits);
+	while (l.hasNext()) {
+		l.next();
+		l.value()->setText(temp->getSetting(l.key()));
+	}
+	QMapIterator<QString, QCheckBox*> i(templateCheckBoxes);
+	while (i.hasNext()) {
+		i.next();
+		i.value()->setChecked(temp->getSettingInt(i.key()));
+	}
+	int2lb(nsCertType, temp->getSettingInt("nsCertType"));
+	basicCA->setCurrentIndex(temp->getSettingInt("ca"));
+	int2lb(keyUsage, temp->getSettingInt("keyUse"));
+	QString2lb(ekeyUsage, temp->getSetting("eKeyUse"));
+	validRange->setCurrentIndex(temp->getSettingInt("validM"));
+	nconf_data->document()->setPlainText(temp->getSetting("adv_ext"));
+	setAuthInfAcc_string(temp->getSetting("authInfAcc"));
+
+	on_applyTime_clicked();
+}
+
+void NewX509::fromTemplate(pki_temp *temp)
+{
+	subjectFromTemplate(temp);
+	extensionsFromTemplate(temp);
+}
+
+void NewX509::toTemplate(pki_temp *temp)
+{
+	temp->setIntName(description->text());
+	temp->setSubject(getX509name());
+
+	QMapIterator<QString, QLineEdit*> l(templateLineEdits);
+	while (l.hasNext()) {
+		l.next();
+		temp->setSetting(l.key(), l.value()->text());
+	}
+	QMapIterator<QString, QCheckBox*> i(templateCheckBoxes);
+	while (i.hasNext()) {
+		i.next();
+		temp->setSetting(i.key(), i.value()->isChecked());
+	}
+
+	temp->setSetting("authInfAcc", getAuthInfAcc_string());
+	temp->setSetting("nsCertType", lb2int(nsCertType));
+	temp->setSetting("ca", basicCA->currentIndex());
+	temp->setSetting("keyUse", lb2int(keyUsage));
+	temp->setSetting("eKeyUse", lb2QString(ekeyUsage));
+	temp->setSetting("validN", validN->text().toInt());
+	temp->setSetting("validM", validRange->currentIndex());
+	if (!temp->getSetting("basicPath").isEmpty())
+		temp->setSetting("basicPath", temp->getSettingInt("basicPath"));
+	if (nconf_data->isReadOnly()) {
+		temp->setSetting("adv_ext", v3ext_backup);
+	} else {
+		temp->setSetting("adv_ext", nconf_data->toPlainText());
+	}
+
+	temp->setComment(comment->toPlainText());
+}
+
+void NewX509::on_fromReqCB_clicked()
+{
+	bool request = fromReqCB->isChecked();
+	bool subj_tab_present = tabWidget->widget(1) == tab_1;
+	bool subChange = reqSubChange->isChecked();
+
+	if (request && subj_tab_present && !subChange)
+		tabWidget->removeTab(1);
+	else if ((!request || subChange) && !subj_tab_present)
+		tabWidget->insertTab(1, tab_1, tr("Subject"));
+
+	reqList->setEnabled(request);
+	copyReqExtCB->setEnabled(request);
+	showReqBut->setEnabled(request);
+	reqSubChange->setEnabled(request);
+	switchHashAlgo();
+}
+
+void NewX509::on_reqSubChange_clicked()
+{
+	if (reqSubChange->isChecked()) {
+		pki_x509req *req = getSelectedReq();
+		description->setText(req->getIntName());
+		setX509name(req->getSubject());
+		usedKeysToo->setEnabled(false);
+		keyList->setEnabled(false);
+		genKeyBut->setEnabled(false);
+	}
+	on_fromReqCB_clicked();
+}
+
+void NewX509::on_keyList_currentIndexChanged(const QString &)
+{
+	switchHashAlgo();
+}
+
+void NewX509::on_reqList_currentIndexChanged(const QString &)
+{
+	switchHashAlgo();
+}
+
+void NewX509::switchHashAlgo()
+{
+	pki_key *key;
+	pki_x509super *sig;
+
+	if (foreignSignRB->isChecked())
+		sig = getSelectedSigner();
+	else if (fromReqCB->isChecked())
+		sig = getSelectedReq();
+	else
+		sig = NULL;
+
+	key = sig ? sig->getRefKey() : getSelectedKey();
+
+	if (key) {
+		hashAlgo->setKeyType(key->getKeyType());
+		hashAlgo->setupHashes(key->possibleHashNids());
+	} else {
+		hashAlgo->setKeyType(EVP_PKEY_RSA);
+		hashAlgo->setupAllHashes();
+	}
+}
+
+void NewX509::on_showReqBut_clicked()
+{
+	emit showReq(reqList->currentPkiItem());
+}
+
+void NewX509::itemChanged(pki_base* req)
+{
+	reqList->insertPkiItems(MainWindow::reqs->getAllRequests());
+	reqList->setCurrentPkiItem(dynamic_cast<pki_x509req*>(req));
+}
+
+void NewX509::on_genKeyBut_clicked()
+{
+	QString name = description->text();
+	if (name.isEmpty())
+		name = getX509name().getMostPopular();
+	emit genKey(name);
+}
+
+void NewX509::on_certList_currentIndexChanged(int)
+{
+	a1time snb, sna;
+	pki_x509 *cert = getSelectedSigner();
+
+	switchHashAlgo();
+
+	if (!cert)
+		return;
+
+	pki_temp *templ = caTemplate(cert);
+	snb = cert->getNotBefore();
+	sna = cert->getNotAfter();
+	if (snb > notBefore->getDate())
+		notBefore->setDate(snb);
+	if (sna < notAfter->getDate())
+		notAfter->setDate(sna);
+
+	if (templ)
+		templateChanged(templ);
+}
+
+
+void NewX509::templateChanged(QString tempname)
+{
+	int index;
+	if (!tempList->isEnabled())
+		return;
+	if ((index = tempList->findText(tempname)) <0)
+		return;
+
+	tempList->setCurrentIndex(index);
+}
+
+
+void NewX509::templateChanged(pki_temp *templ)
+{
+	tempList->setCurrentPkiItem(templ);
+}
+
+pki_temp *NewX509::currentTemplate()
+{
+	if (!tempList->isEnabled())
+		return NULL;
+	return tempList->currentPkiItem();
+}
+
+void NewX509::selfComment(QString msg)
+{
+	comment->setPlainText(appendXcaComment(comment->toPlainText(), msg));
+}
+
+void NewX509::on_applyTemplate_clicked()
+{
+	pki_temp *t = currentTemplate();
+	if (!t)
+		return;
+	fromTemplate(t);
+	selfComment(tr("Template '%1' applied").arg(t->comboText()));
+}
+
+void NewX509::on_applySubject_clicked()
+{
+	pki_temp *t = currentTemplate();
+	subjectFromTemplate(t);
+	selfComment(tr("Subject applied from template '%1'")
+			.arg(t->comboText()));
+}
+
+void NewX509::on_applyExtensions_clicked()
+{
+	pki_temp *t = currentTemplate();
+	extensionsFromTemplate(t);
+	selfComment(tr("Extensions applied from template '%1'")
+			.arg(t->comboText()));
+}
+
+void NewX509::on_foreignSignRB_toggled(bool)
+{
+	switchHashAlgo();
+}
+
+void NewX509::newKeyDone(pki_key *nkey)
+{
+	allKeys =   MainWindow::keys->getAllKeys();
+	unusedKeys= MainWindow::keys->getUnusedKeys();
+	on_usedKeysToo_toggled(true);
+	if (nkey) {
+		selfComment(tr("New key '%1' created")
+				.arg(nkey->comboText()));
+		keyList->setCurrentPkiItem(nkey);
+	} else {
+		keyList->setCurrentIndex(0);
+	}
+}
+
+void NewX509::on_usedKeysToo_toggled(bool)
+{
+	pki_key *cur = keyList->currentPkiItem();
+	keyList->clear();
+	keyList->insertPkiItems(usedKeysToo->isChecked() ?
+			allKeys : unusedKeys);
+	keyList->setCurrentPkiItem(cur);
+}
+
+pki_key *NewX509::getSelectedKey()
+{
+	return keyList->currentPkiItem();
+}
+
+pki_x509 *NewX509::getSelectedSigner()
+{
+	return certList->currentPkiItem();
+}
+
+pki_x509req *NewX509::getSelectedReq()
+{
+	return reqList->currentPkiItem();
+}
+
+x509name NewX509::getX509name(int _throw)
+{
+	x509name x;
+	int j, row, nid;
+
+	if (fromReqCB->isChecked() && !reqSubChange->isChecked())
+		return getSelectedReq()->getSubject();
+
+	try {
+		foreach(nameEdit ne, nameEdits) {
+			x.addEntryByNid(ne.nid, ne.edit->text());
+		}
+		row = extDNlist->rowCount();
+		for (j=0; j<row; j++) {
+			QStringList l = extDNlist->getRow(j);
+			nid = OBJ_txt2nid(CCHAR(l[0]));
+			x.addEntryByNid(nid, l[1]);
+		}
+	} catch (errorEx &err) {
+		if (!err.isEmpty()) {
+			if (_throw)
+				throw err;
+			else
+				XCA_WARN(err.getString());
+		}
+	}
+	return x;
+}
+
+void NewX509::setX509name(const x509name &n)
+{
+	extDNlist->deleteAllRows();
+	foreach(nameEdit ne, nameEdits) {
+		ne.edit->setText("");
+	}
+
+	if (Settings["adapt_explicit_subject"]) {
+		NIDlist mydn;
+		for (int i=0; i< n.entryCount(); i++)
+			mydn << n.nid(i);
+		setupExplicitDN(mydn);
+	}
+	for (int i=0, j=0; i< n.entryCount(); i++) {
+		int nid = n.nid(i);
+		bool done = false;
+		QStringList sl = n.entryList(i);
+		for ( ; j < nameEdits.size(); j++) {
+			nameEdit ne(nameEdits[j]);
+			if (nid == ne.nid && ne.edit->text().isEmpty()) {
+				ne.edit->setText(sl[2]);
+				done = true;
+				break;
+			}
+		}
+		if (!done) {
+			extDNlist->addRow(sl.mid(1, 2));
+		}
+	}
+}
+
+void NewX509::on_applyTime_clicked()
+{
+	notAfter->setDiff(notBefore, validN->text().toInt(),
+				     validRange->currentIndex());
+}
+
+void NewX509::setupTmpCtx()
+{
+	pki_x509 *signcert;
+	pki_x509req *req = NULL;
+	pki_key *key = NULL;
+	a1int serial(1);
+	QString errtxt;
+
+	// initially create temporary ctx cert
+	if (ctx_cert)
+		delete ctx_cert;
+	ctx_cert = new pki_x509();
+	ctx_cert->setSubject(getX509name());
+	if (fromReqCB->isChecked()) {
+		req = getSelectedReq();
+		if (req)
+			key = req->getRefKey();
+	} else {
+		key = getSelectedKey();
+	}
+	if (key)
+		ctx_cert->setPubKey(key);
+	// Step 2 - select Signing
+	if (foreignSignRB->isChecked()) {
+		signcert = getSelectedSigner();
+		ctx_cert->setIssuer(signcert->getSubject());
+	} else {
+		signcert = ctx_cert;
+		ctx_cert->setIssuer(ctx_cert->getSubject());
+	}
+	ctx_cert->setSerial(serial);
+	initCtx(ctx_cert, signcert, req);
+}
+
+void NewX509::editV3ext(QLineEdit *le, QString types, int n)
+{
+	v3ext *dlg;
+
+	dlg = new v3ext(this);
+	setupTmpCtx();
+	if (n == NID_info_access) {
+		int nid, idx = aiaOid->currentIndex();
+		if (idx >= 0 && idx < aia_nid.size()) {
+			nid = aia_nid[idx];
+			dlg->setPrefix(QString(OBJ_nid2sn(nid)) + ";");
+		}
+	}
+	dlg->addInfo(le, types.split(',' ), n, &ext_ctx);
+	dlg->exec();
+	delete(dlg);
+}
+
+void NewX509::on_adv_validate_clicked()
+{
+	if (!nconf_data->isReadOnly()) {
+		/* switch from edit to display mode */
+		do_validateExtensions();
+	} else {
+		/* switch back to edit mode */
+		undo_validateExtensions();
+	}
+}
+
+void NewX509::checkIcon(const QString &text, int nid, QLabel *img)
+{
+	if (text.isEmpty()) {
+		img->clear();
+		return;
+	}
+	ign_openssl_error();
+	switch (nid) {
+	case NID_subject_alt_name:
+		getSubAltName();
+		break;
+	case NID_issuer_alt_name:
+		getIssAltName();
+		break;
+	case NID_crl_distribution_points:
+		getCrlDist();
+		break;
+	case NID_info_access:
+		getAuthInfAcc();
+		break;
+	}
+	if (ign_openssl_error()) {
+		img->setPixmap(*MainWindow::warnIco);
+		return;
+	}
+	img->setPixmap(*MainWindow::doneIco);
+}
+
+void NewX509::checkSubAltName(const QString & text)
+{
+	checkIcon(text, NID_subject_alt_name, subAltIco);
+}
+
+void NewX509::checkIssAltName(const QString & text)
+{
+	checkIcon(text, NID_issuer_alt_name, issAltIco);
+}
+
+void NewX509::checkCrlDist(const QString & text)
+{
+	checkIcon(text, NID_crl_distribution_points, crlDistIco);
+}
+
+void NewX509::checkAuthInfAcc(const QString & text)
+{
+	checkIcon(text, NID_info_access, authInfAccIco);
+}
+
+int NewX509::do_validateExtensions()
+{
+	QString result;
+	int ret = 0;
+
+	if (!nconf_data->isReadOnly()) {
+		v3ext_backup = nconf_data->toPlainText();
+	}
+	ret = validateExtensions(v3ext_backup, result);
+	nconf_data->document()->setHtml(result);
+	nconf_data->setReadOnly(true);
+	adv_validate->setText(tr("Edit"));
+	return ret;
+}
+
+void NewX509::undo_validateExtensions()
+{
+	if (nconf_data->isReadOnly()) {
+		nconf_data->document()->setPlainText(v3ext_backup);
+	}
+	nconf_data->setReadOnly(false);
+	adv_validate->setText(tr("Validate"));
+}
+
+int NewX509::validateExtensions(QString nconf, QString &result)
+{
+	int ret = 0, ext_count = 0;
+	QStringList errors;
+	extList el, req_el;
+	ign_openssl_error();
+	setupTmpCtx();
+	(void)nconf;
+	try {
+		el = getGuiExt();
+		if (!Settings["disable_netscape"])
+			el += getNetscapeExt();
+		el.delInvalid();
+	} catch (errorEx &err) {
+		errors += err.getString();
+		el.clear();
+	}
+	ext_count += el.size();
+	if (el.size() > 0) {
+		result += "<h2><center>";
+		result += tr("Other Tabs") + "</center></h2><p>\n";
+		result += el.getHtml("<br>");
+	}
+	try {
+		el = getAdvanced();
+	} catch (errorEx &err) {
+		errors += err.getString();
+		el.clear();
+	}
+	ext_count += el.size();
+	if (el.size() > 0) {
+		if (!result.isEmpty())
+			result += "\n<hr>\n";
+		result += "<h2><center>";
+		result += tr("Advanced Tab") + "</center></h2><p>\n";
+		result += el.getHtml("<br>");
+	}
+	if (errors.size()) {
+		if (!result.isEmpty())
+			result += "\n<hr>\n";
+		result += "<h2><center>";
+		result += tr("Errors") + "</center></h2><p><ul><li>\n";
+		result += errors.join("</li><li>\n");
+		result += "</li></ul>";
+		ret = 1;
+	}
+	el.clear();
+	if (fromReqCB->isChecked() && copyReqExtCB->isChecked()) {
+		req_el = getSelectedReq()->getV3ext();
+                for (int i=0; i<req_el.count(); i++) {
+			if (ctx_cert && ctx_cert->addV3ext(req_el[i], true))
+				el += req_el[i];
+		}
+	}
+	ext_count += el.size();
+	if (el.size() > 0) {
+		if (!result.isEmpty())
+			result += "\n<hr>\n";
+		result += "<h2><center>";
+		result += tr("From PKCS#10 request") +"</center></h2><p>\n";
+		result += el.getHtml("<br>");
+	}
+	el = getExtDuplicates();
+	if (el.size() > 0) {
+		QString errtxt;
+		ret = 1;
+		errtxt = "<h2><center><font color=\"red\">Error:</font>"
+			"duplicate extensions:</center></h2><p><ul>\n";
+		for(int i = 0; i< el.size(); i++) {
+			errtxt += "<li>" +el[i].getObject() +"</li>\n";
+		}
+		errtxt += "</ul>\n<hr>\n";
+		result = errtxt + result;
+	}
+	ign_openssl_error();
+	return ret == 1 ? 1 : ext_count == 0 && pt == x509 ? 2 : 0;
+}
+
+void NewX509::on_editSubAlt_clicked()
+{
+	QString s = "URI,email,RID,DNS,IP,otherName";
+	editV3ext(subAltName, s, NID_subject_alt_name);
+}
+
+void NewX509::on_editIssAlt_clicked()
+{
+	QString s = "URI,email,RID,DNS,IP,otherName,issuer";
+	editV3ext(issAltName, s, NID_issuer_alt_name);
+}
+
+void NewX509::on_editCrlDist_clicked()
+{
+	editV3ext(crlDist, "URI", NID_crl_distribution_points);
+}
+
+void NewX509::on_editAuthInfAcc_clicked()
+{
+	editV3ext(authInfAcc, "URI,email,RID,DNS,IP", NID_info_access);
+}
+
+void NewX509::on_tabWidget_currentChanged(int tab)
+{
+	if (tabWidget->tabText(tab) == tabnames[5])
+		do_validateExtensions();
+}
+
+QString NewX509::mandatoryDnRemain()
+{
+	QStringList remain, dnl = QString(Settings["mandatory_dn"]).split(",");
+	x509name n;
+	int i;
+
+	if (QString(Settings["mandatory_dn"]).isEmpty())
+		return QString();
+
+	n = getX509name();
+
+	for (i=0; i< n.entryCount(); i++) {
+		int j = dnl.indexOf(QString(OBJ_nid2sn(n.nid(i))));
+		if (j>=0)
+			dnl.removeAt(j);
+	}
+	if (dnl.size() == 0)
+		return QString();
+
+	foreach(QString x, dnl)
+		remain << QString(OBJ_sn2ln(x.toLatin1()));
+	return QString("'%1'").arg(remain.join("','"));
+}
+
+void NewX509::gotoTab(int tab)
+{
+	for (int i=0; i<tabWidget->count(); i++) {
+		if (tabWidget->tabText(i) == tabnames[tab]) {
+			tabWidget->setCurrentIndex(i);
+			break;
+		}
+	}
+}
+
+enum pki_source NewX509::getPkiSource() const
+{
+	return pkiSource;
+}
+
+void NewX509::accept()
+{
+	x509name xn;
+	on_tabWidget_currentChanged(0);
+	try {
+		xn = getX509name(1);
+	} catch (errorEx &err) {
+		gotoTab(1);
+		xcaWarning msg(this, err.getString());
+		msg.addButton(QMessageBox::Ok);
+		msg.addButton(QMessageBox::Close)->setText(tr("Abort rollout"));
+		if (msg.exec() == QMessageBox::Close) {
+			reject();
+		}
+		return;
+	}
+	QString lenErr = xn.checkLength();
+	if (!lenErr.isEmpty()) {
+		gotoTab(1);
+		lenErr = tr("The following length restrictions of RFC3280 are violated:") +
+			"\n" + lenErr;
+		xcaWarning msg(this, lenErr);
+		msg.addButton(QMessageBox::Ok)->setText(tr("Edit subject"));
+		msg.addButton(QMessageBox::Close)->setText(tr("Abort rollout"));
+		msg.addButton(QMessageBox::Apply)->setText(tr("Continue rollout"));
+		switch (msg.exec())
+		{
+			case QMessageBox::Ok:
+			case QMessageBox::Cancel:
+				return;
+			case QMessageBox::Close:
+				reject();
+				return;
+			case QMessageBox::Apply:
+				break;
+		}
+	}
+	if (fromReqCB->isChecked() && !getSelectedReq()->verify()) {
+		gotoTab(0);
+		xcaWarning msg(this,
+			tr("The verification of the Certificate request failed.\nThe rollout should be aborted."));
+		msg.addButton(QMessageBox::Ok)->setText(tr("Continue anyway"));
+		msg.addButton(QMessageBox::Close)->setText(tr("Abort rollout"));
+		if (msg.exec() == QMessageBox::Close) {
+			reject();
+		}
+	}
+	if (description->text().isEmpty() && !fromReqCB->isChecked()) {
+		QString cn = getX509name().getMostPopular();
+		if (cn.isEmpty()) {
+			gotoTab(1);
+			xcaWarning msg(this,
+				tr("The internal name and the common name are empty.\nPlease set at least the internal name."));
+			msg.addButton(QMessageBox::Ok)->setText(tr("Edit name"));
+			msg.addButton(QMessageBox::Close)->setText(tr("Abort rollout"));
+			if (msg.exec() == QMessageBox::Close) {
+				reject();
+			}
+			return;
+		} else {
+			description->setText(cn);
+		}
+	}
+	if (keyList->count() == 0 && keyList->isEnabled() &&
+				!fromReqCB->isChecked())
+	{
+		gotoTab(1);
+		xcaWarning msg(this,
+			tr("There is no Key selected for signing."));
+		msg.addButton(QMessageBox::Ok)->setText(tr("Select key"));
+		msg.addButton(QMessageBox::Close)->setText(tr("Abort rollout"));
+		if (msg.exec() == QMessageBox::Close) {
+			reject();
+		}
+		return;
+	}
+	QString unsetDN;
+	if (pt != tmpl)
+		unsetDN = mandatoryDnRemain();
+	if (!unsetDN.isEmpty()) {
+		gotoTab(1);
+		QString text = tr("The following distinguished name entries are empty:\n%1\nthough you have declared them as mandatory in the options menu.").arg(unsetDN);
+		xcaWarning msg(this, text);
+		msg.addButton(QMessageBox::Ok)->setText(tr("Edit subject"));
+		msg.addButton(QMessageBox::Close)->setText(tr("Abort rollout"));
+		msg.addButton(QMessageBox::Apply)->setText(tr("Continue rollout"));
+		switch (msg.exec())
+		{
+			case QMessageBox::Ok:
+			case QMessageBox::Cancel:
+				return;
+			case QMessageBox::Close:
+				reject();
+				return;
+			case QMessageBox::Apply:
+				break;
+		}
+	}
+	pki_key *signkey = NULL;
+	pki_x509 *signer = NULL;
+	if (foreignSignRB->isChecked()) {
+		signer = getSelectedSigner();
+		if (signer)
+			signkey = signer->getRefKey();
+	} else if (fromReqCB->isChecked()) {
+		pki_x509req *req = getSelectedReq();
+		if (req)
+			signkey = req->getRefKey();
+	} else {
+		signkey = getSelectedKey();
+	}
+	if ((!signkey || signkey->isPubKey()) && pt != tmpl) {
+		QString txt;
+		gotoTab(signer ? 0 : 1);
+		xcaWarning msg(this,
+			tr("The key you selected for signing is not a private one."));
+		txt = signer ? tr("Select other signer"):tr("Select other key");
+		msg.addButton(QMessageBox::Ok)->setText(txt);
+		msg.addButton(QMessageBox::Close)->setText(tr("Abort rollout"));
+		if (msg.exec() == QMessageBox::Close) {
+			reject();
+		}
+		return;
+        }
+	if (signer && notBefore->getDate() < signer->getNotBefore()) {
+		gotoTab(2);
+		QString text = tr("The certificate will be earlier valid than the signer. This is probably not what you want.");
+		xcaWarning msg(this, text);
+		msg.addButton(QMessageBox::Ok)->setText(tr("Edit dates"));
+		msg.addButton(QMessageBox::Close)->setText(tr("Abort rollout"));
+		msg.addButton(QMessageBox::Apply)->setText(tr("Continue rollout"));
+		msg.addButton(QMessageBox::Yes)->setText(tr("Adjust date and continue"));
+		switch (msg.exec())
+		{
+			case QMessageBox::Ok:
+			case QMessageBox::Cancel:
+				return;
+			case QMessageBox::Close:
+				reject();
+				return;
+			case QMessageBox::Apply:
+				break;
+			case QMessageBox::Yes:
+				notBefore->setDate(signer->getNotBefore());
+		}
+	}
+	if (signer && notAfter->getDate() > signer->getNotAfter() &&
+				!noWellDefinedExpDate->isChecked()) {
+		gotoTab(2);
+		QString text = tr("The certificate will be longer valid than the signer. This is probably not what you want.");
+		xcaWarning msg(this, text);
+		msg.addButton(QMessageBox::Ok)->setText(tr("Edit dates"));
+		msg.addButton(QMessageBox::Close)->setText(tr("Abort rollout"));
+		msg.addButton(QMessageBox::Apply)->setText(tr("Continue rollout"));
+		msg.addButton(QMessageBox::Yes)->setText(tr("Adjust date and continue"));
+		switch (msg.exec())
+		{
+			case QMessageBox::Ok:
+			case QMessageBox::Cancel:
+				return;
+			case QMessageBox::Close:
+				reject();
+				return;
+			case QMessageBox::Apply:
+				break;
+			case QMessageBox::Yes:
+				notAfter->setDate(signer->getNotAfter());
+		}
+	}
+	if (validityBox->isEnabled() &&
+	    notBefore->getDate() > notAfter->getDate()) {
+		gotoTab(2);
+		QString text = tr("The certificate will be out of date before it becomes valid. You most probably mixed up both dates.");
+		xcaWarning msg(this, text);
+		msg.addButton(QMessageBox::Ok)->setText(tr("Edit dates"));
+		msg.addButton(QMessageBox::Close)->setText(tr("Abort rollout"));
+		msg.addButton(QMessageBox::Apply)->setText(tr("Continue rollout"));
+		switch (msg.exec())
+		{
+			case QMessageBox::Ok:
+			case QMessageBox::Cancel:
+				return;
+			case QMessageBox::Close:
+				reject();
+				return;
+			case QMessageBox::Apply:
+				break;
+		}
+	}
+	int r = do_validateExtensions();
+	if (r) {
+		QString text;
+		if (r == 1) {
+			text = tr("The certificate contains invalid or duplicate extensions. Check the validation on the advanced tab.");
+			gotoTab(5);
+		} else {
+			text = tr("The certificate contains no extensions. You may apply the extensions of one of the templates to define the purpose of the certificate.");
+			gotoTab(0);
+		}
+		xcaWarning msg(this, text);
+		msg.addButton(QMessageBox::Ok)->setText(tr("Edit extensions"));
+		msg.addButton(QMessageBox::Close)->setText(tr("Abort rollout"));
+		msg.addButton(QMessageBox::Apply)->setText(tr("Continue rollout"));
+		switch (msg.exec())
+		{
+			case QMessageBox::Ok:
+			case QMessageBox::Cancel:
+				return;
+			case QMessageBox::Close:
+				reject();
+				return;
+			case QMessageBox::Apply:
+				break;
+		}
+	}
+	QString cn = xn.getEntryByNid(NID_commonName);
+	QStringList san = subAltName->text().split(QRegExp(" *, *"));
+	if (cn.isEmpty() && san.contains("DNS:copycn") && pt != tmpl) {
+		gotoTab(2);
+		xcaWarning msg(this, tr("The subject alternative name shall contain a copy of the common name. However, the common name is empty."));
+		msg.addButton(QMessageBox::Ok)->setText(tr("Edit extensions"));
+		msg.addButton(QMessageBox::Close)->setText(tr("Abort rollout"));
+		msg.addButton(QMessageBox::Apply)->setText(tr("Continue rollout"));
+		switch (msg.exec())
+		{
+			case QMessageBox::Ok:
+			case QMessageBox::Cancel:
+				return;
+			case QMessageBox::Close:
+				reject();
+				return;
+			case QMessageBox::Apply:
+				break;
+		}
+	}
+	QDialog::accept();
+}

@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -ex
+
+export dir="$1"
+(
+  head -n -2
+  test -z "$dir" || cd $dir
+  sha256sum * | while read md file; do
+   echo '  "'$file'":"'$md'",'
+  done
+  cat <<-EOF
+
+	  "last":""
+	}
+	EOF
+) < misc/binary-hashes.json > misc/binary-hashes.json.tmp &&
+
+mv misc/binary-hashes.json.tmp misc/binary-hashes.json

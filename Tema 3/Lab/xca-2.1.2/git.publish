@@ -1,0 +1,26 @@
+#!/bin/sh
+
+set -e
+
+test -s VERSION && test -s changelog && test -s README.md
+test -d .git
+
+read TVERSION < VERSION
+export TVERSION
+
+releasedir="$HOME/xca-$TVERSION"
+
+./misc/gen-binary-hash "$releasedir"
+echo "$TVERSION""+" > VERSION
+git commit -a -m "Release XCA $TVERSION done"
+
+./github.release.py "$TVERSION" "${releasedir}/"*"xca-$TVERSION"*
+
+cat << EOF
+
+After verifying the commits, tags and github release,
+finally do:
+  git push origin --tags master
+  scp ${releasedir}/doc/* hohnstaedt.de:xca-doc/
+  Un-draft the release on github
+EOF

@@ -1,0 +1,1026 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>702</width>
+    <height>511</height>
+   </rect>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <layout class="QVBoxLayout">
+    <item>
+     <widget class="QTabWidget" name="tabView">
+      <property name="currentIndex">
+       <number>2</number>
+      </property>
+      <widget class="QWidget" name="RSATab">
+       <attribute name="title">
+        <string>Private Keys</string>
+       </attribute>
+       <layout class="QHBoxLayout">
+        <property name="margin">
+         <number>8</number>
+        </property>
+        <item>
+         <widget class="KeyTreeView" name="keyView"/>
+        </item>
+        <item>
+         <widget class="QFrame" name="keyButtons">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::Box</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Sunken</enum>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout">
+           <item>
+            <widget class="QPushButton" name="BNnewKey">
+             <property name="text">
+              <string>&amp;New Key</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNexportKey">
+             <property name="text">
+              <string>&amp;Export</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNimportKey">
+             <property name="text">
+              <string>&amp;Import</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNimportPFX">
+             <property name="text">
+              <string>Import PFX (PKCS#12)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNdetailsKey">
+             <property name="text">
+              <string>&amp;Show Details</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNdeleteKey">
+             <property name="text">
+              <string>&amp;Delete</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer>
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::Expanding</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="bigKey">
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>94</height>
+              </size>
+             </property>
+             <property name="scaledContents">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="CertTab">
+       <attribute name="title">
+        <string>Certificate signing requests</string>
+       </attribute>
+       <layout class="QHBoxLayout">
+        <property name="margin">
+         <number>8</number>
+        </property>
+        <item>
+         <widget class="ReqTreeView" name="reqView"/>
+        </item>
+        <item>
+         <widget class="QFrame" name="reqButtons">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::Box</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Sunken</enum>
+          </property>
+          <layout class="QVBoxLayout">
+           <property name="margin">
+            <number>8</number>
+           </property>
+           <item>
+            <widget class="QPushButton" name="BNnewReq">
+             <property name="text">
+              <string>&amp;New Request</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNexportReq">
+             <property name="text">
+              <string>&amp;Export</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNimportReq">
+             <property name="text">
+              <string>&amp;Import</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNdetailsReq">
+             <property name="text">
+              <string>&amp;Show Details</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNdeleteReq">
+             <property name="text">
+              <string>&amp;Delete</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer>
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::Expanding</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="bigCsr">
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>94</height>
+              </size>
+             </property>
+             <property name="scaledContents">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="ReqTab">
+       <attribute name="title">
+        <string>Certificates</string>
+       </attribute>
+       <layout class="QHBoxLayout">
+        <property name="margin">
+         <number>8</number>
+        </property>
+        <item>
+         <widget class="CertTreeView" name="certView"/>
+        </item>
+        <item>
+         <widget class="QFrame" name="certButtons">
+          <property name="frameShape">
+           <enum>QFrame::Box</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Sunken</enum>
+          </property>
+          <layout class="QVBoxLayout">
+           <property name="margin">
+            <number>11</number>
+           </property>
+           <item>
+            <widget class="QPushButton" name="BNnewCert">
+             <property name="text">
+              <string>&amp;New Certificate</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNexportCert">
+             <property name="text">
+              <string>&amp;Export</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNimportCert">
+             <property name="text">
+              <string>&amp;Import</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNdetailsCert">
+             <property name="text">
+              <string>&amp;Show Details</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNdeleteCert">
+             <property name="text">
+              <string>&amp;Delete</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNimportPKCS12">
+             <property name="text">
+              <string>Import &amp;PKCS#12</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNimportPKCS7">
+             <property name="text">
+              <string>Import P&amp;KCS#7</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNviewState">
+             <property name="text">
+              <string>Plain View</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer>
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::Expanding</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="bigCert">
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>94</height>
+              </size>
+             </property>
+             <property name="scaledContents">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="CATab">
+       <attribute name="title">
+        <string>Templates</string>
+       </attribute>
+       <layout class="QHBoxLayout">
+        <property name="margin">
+         <number>8</number>
+        </property>
+        <item>
+         <widget class="TempTreeView" name="tempView">
+          <property name="alternatingRowColors">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="tempButtons">
+          <property name="frameShape">
+           <enum>QFrame::Box</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Sunken</enum>
+          </property>
+          <layout class="QVBoxLayout">
+           <property name="margin">
+            <number>11</number>
+           </property>
+           <item>
+            <widget class="QPushButton" name="BNnewTemp">
+             <property name="text">
+              <string>&amp;New Template</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNchangeTemp">
+             <property name="text">
+              <string>Ch&amp;ange Template</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNdeleteTemp">
+             <property name="text">
+              <string>&amp;Delete</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNimportTemp">
+             <property name="text">
+              <string>&amp;Import</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNexportTemp">
+             <property name="text">
+              <string>&amp;Export</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer>
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::Expanding</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="bigTemp">
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>94</height>
+              </size>
+             </property>
+             <property name="scaledContents">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="unnamed">
+       <attribute name="title">
+        <string>Revocation lists</string>
+       </attribute>
+       <layout class="QHBoxLayout">
+        <item>
+         <widget class="XcaTreeView" name="crlView"/>
+        </item>
+        <item>
+         <widget class="QFrame" name="crlButtons">
+          <property name="frameShape">
+           <enum>QFrame::Box</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Sunken</enum>
+          </property>
+          <layout class="QVBoxLayout">
+           <item>
+            <widget class="QPushButton" name="BNnewCrl">
+             <property name="text">
+              <string>&amp;New CRL</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNexportCrl">
+             <property name="text">
+              <string>&amp;Export</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNimportCrl">
+             <property name="text">
+              <string>&amp;Import</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNdetailsCrl">
+             <property name="text">
+              <string>&amp;Show Details</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BNdeleteCrl">
+             <property name="text">
+              <string>&amp;Delete</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer>
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::Expanding</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="bigRev">
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>94</height>
+              </size>
+             </property>
+             <property name="scaledContents">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>XcaTreeView</class>
+   <extends>QTreeView</extends>
+   <header>widgets/XcaTreeView.h</header>
+   <slots>
+    <slot>newItem()</slot>
+    <slot>load()</slot>
+    <slot>storeItems()</slot>
+    <slot>showItems()</slot>
+    <slot>deleteItems()</slot>
+   </slots>
+  </customwidget>
+  <customwidget>
+   <class>KeyTreeView</class>
+   <extends>QTreeView</extends>
+   <header>widgets/KeyTreeView.h</header>
+  </customwidget>
+  <customwidget>
+   <class>TempTreeView</class>
+   <extends>QTreeView</extends>
+   <header>widgets/TempTreeView.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ReqTreeView</class>
+   <extends>QTreeView</extends>
+   <header>widgets/ReqTreeView.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CertTreeView</class>
+   <extends>QTreeView</extends>
+   <header>widgets/CertTreeView.h</header>
+   <slots>
+    <slot>loadPKCS12()</slot>
+    <slot>loadPKCS7()</slot>
+    <slot>changeView()</slot>
+   </slots>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>BNimportKey</sender>
+   <signal>clicked()</signal>
+   <receiver>keyView</receiver>
+   <slot>load()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>505</x>
+     <y>129</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>382</x>
+     <y>135</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNnewKey</sender>
+   <signal>clicked()</signal>
+   <receiver>keyView</receiver>
+   <slot>newItem()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>488</x>
+     <y>67</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>392</x>
+     <y>67</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNexportKey</sender>
+   <signal>clicked()</signal>
+   <receiver>keyView</receiver>
+   <slot>storeItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>526</x>
+     <y>99</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>393</x>
+     <y>99</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNdetailsKey</sender>
+   <signal>clicked()</signal>
+   <receiver>keyView</receiver>
+   <slot>showItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>473</x>
+     <y>200</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>405</x>
+     <y>200</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNdeleteKey</sender>
+   <signal>clicked()</signal>
+   <receiver>keyView</receiver>
+   <slot>deleteItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>470</x>
+     <y>229</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>404</x>
+     <y>230</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNnewReq</sender>
+   <signal>clicked()</signal>
+   <receiver>reqView</receiver>
+   <slot>newItem()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>496</x>
+     <y>57</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>371</x>
+     <y>58</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNexportReq</sender>
+   <signal>clicked()</signal>
+   <receiver>reqView</receiver>
+   <slot>storeItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>489</x>
+     <y>91</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>400</x>
+     <y>95</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNimportReq</sender>
+   <signal>clicked()</signal>
+   <receiver>reqView</receiver>
+   <slot>load()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>500</x>
+     <y>123</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>412</x>
+     <y>130</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNdetailsReq</sender>
+   <signal>clicked()</signal>
+   <receiver>reqView</receiver>
+   <slot>showItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>497</x>
+     <y>157</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>419</x>
+     <y>166</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNdeleteReq</sender>
+   <signal>clicked()</signal>
+   <receiver>reqView</receiver>
+   <slot>deleteItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>475</x>
+     <y>196</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>196</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNnewCert</sender>
+   <signal>clicked()</signal>
+   <receiver>certView</receiver>
+   <slot>newItem()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>478</x>
+     <y>63</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>398</x>
+     <y>63</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNexportCert</sender>
+   <signal>clicked()</signal>
+   <receiver>certView</receiver>
+   <slot>storeItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>499</x>
+     <y>97</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>401</x>
+     <y>99</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNimportCert</sender>
+   <signal>clicked()</signal>
+   <receiver>certView</receiver>
+   <slot>load()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>475</x>
+     <y>127</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>401</x>
+     <y>128</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNdetailsCert</sender>
+   <signal>clicked()</signal>
+   <receiver>certView</receiver>
+   <slot>showItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>486</x>
+     <y>162</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>395</x>
+     <y>165</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNdeleteCert</sender>
+   <signal>clicked()</signal>
+   <receiver>certView</receiver>
+   <slot>deleteItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>482</x>
+     <y>203</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>357</x>
+     <y>207</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNnewTemp</sender>
+   <signal>clicked()</signal>
+   <receiver>tempView</receiver>
+   <slot>newItem()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>513</x>
+     <y>60</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>363</x>
+     <y>62</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNchangeTemp</sender>
+   <signal>clicked()</signal>
+   <receiver>tempView</receiver>
+   <slot>showItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>481</x>
+     <y>94</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>415</x>
+     <y>97</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNdeleteTemp</sender>
+   <signal>clicked()</signal>
+   <receiver>tempView</receiver>
+   <slot>deleteItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>482</x>
+     <y>126</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>428</x>
+     <y>126</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNimportTemp</sender>
+   <signal>clicked()</signal>
+   <receiver>tempView</receiver>
+   <slot>load()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>487</x>
+     <y>165</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>407</x>
+     <y>165</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNexportTemp</sender>
+   <signal>clicked()</signal>
+   <receiver>tempView</receiver>
+   <slot>storeItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>488</x>
+     <y>201</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>428</x>
+     <y>201</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNexportCrl</sender>
+   <signal>clicked()</signal>
+   <receiver>crlView</receiver>
+   <slot>storeItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>472</x>
+     <y>70</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>381</x>
+     <y>70</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNimportCrl</sender>
+   <signal>clicked()</signal>
+   <receiver>crlView</receiver>
+   <slot>load()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>496</x>
+     <y>99</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>382</x>
+     <y>99</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNdetailsCrl</sender>
+   <signal>clicked()</signal>
+   <receiver>crlView</receiver>
+   <slot>showItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>477</x>
+     <y>131</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>391</x>
+     <y>131</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNdeleteCrl</sender>
+   <signal>clicked()</signal>
+   <receiver>crlView</receiver>
+   <slot>deleteItems()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>471</x>
+     <y>173</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>386</x>
+     <y>172</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNimportPKCS12</sender>
+   <signal>clicked()</signal>
+   <receiver>certView</receiver>
+   <slot>loadPKCS12()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>504</x>
+     <y>239</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>420</x>
+     <y>234</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNimportPKCS7</sender>
+   <signal>clicked()</signal>
+   <receiver>certView</receiver>
+   <slot>loadPKCS7()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>544</x>
+     <y>265</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>406</x>
+     <y>260</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNimportPFX</sender>
+   <signal>clicked()</signal>
+   <receiver>certView</receiver>
+   <slot>loadPKCS12()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>483</x>
+     <y>170</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>230</x>
+     <y>263</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNviewState</sender>
+   <signal>clicked()</signal>
+   <receiver>certView</receiver>
+   <slot>changeView()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>472</x>
+     <y>304</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>402</x>
+     <y>301</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BNnewCrl</sender>
+   <signal>clicked()</signal>
+   <receiver>crlView</receiver>
+   <slot>newItem()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>568</x>
+     <y>62</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>235</x>
+     <y>264</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

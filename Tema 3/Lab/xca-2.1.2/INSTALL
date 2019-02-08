@@ -1,0 +1,90 @@
+
+-------------------=[ XCA ]=---------------------
+
+A graphical user interface to OpenSSL.
+
+
+Requirements:
+==============
+
+for compilation, you need the following Libraries:
+
+QT          >=  4.6.0  from http://www.troll.no
+OpenSSL     >=  0.9.8  from http://www.openssl.org
+
+GNU C++ compiler >= 3.1.0
+GNU make
+
+
+Installation:
+=============
+
+Configuration:
+--------------
+When cloning the git sources the autoconf configure
+script must be assembled by calling
+$ ./bootstrap
+
+The officially published sources already come with
+a configure script.
+To build, just do  the following steps:
+
+$ ./configure; make -j6; make install
+
+You can build in a different subdirectory:
+ - cd into the build directory and
+ - call configure by its full path.
+For example, if you are in the freshly unpacked xca-1.1.0 directory:
+
+$ mkdir Build && cd Build && ../configure && make -j10
+
+To clean all built files: rm -rf Build
+
+If you have a special setup, you can predefine the following
+variables: CC, LD, STRIP, CFLAGS, prefix. e.g.:
+$ CC="ccache gcc" STRIP=: CFLAGS="-Wall -g" prefix=/opt/xca ./configure
+to have a cached build and to not strip xca when installing it.
+XCA expects the translationfiles in /opt/xca/share/xca/
+and installs itself to /opt/xca/bin/
+
+configure allows to set the openssl and QT installation dir.
+$ ./configure --help
+shows all options. It writes all found settings to
+"Local.mak" and "local.h"
+
+
+Building:
+-----------
+The Makefiles do support parallel builds (-j)
+targets:
+all, xca :  builds the app
+install  :  installs the app
+headers  :  UICs the headers in ui/ needed by other files.
+clean    :  deletes all builded files
+distclean:  deletes also Local.mak
+xca.exe  :  W32 executable (see INSTALL.w32)
+setup.exe:  W32 installer
+snapshot :  Creates a current snapshot from the local git repository
+xca.app  :  Creates the MacOSX xca.app
+xca.dmg  :  Creates the MacOSX Disk image
+
+Installing:
+------------
+make destdir=/my/virtual/root
+provides /my/virtual/root/ as root-directory for installation
+to be mounted by others as root or as installdir for
+package builders.
+
+
+Running/invoking:
+=================
+
+a detailed manual can be found in docs/
+
+
+----------------------------------------------------------
+if there are any questions regarding this software,
+dont hesitate to contact me:
+
+christian@hohnstaedt.de
+

@@ -1,0 +1,34 @@
+
+# WARNING: This file will be overwritten by configure
+# @configure_input@
+
+export TOPDIR=@abs_srcdir@
+export VERSION=@PACKAGE_VERSION@
+
+CPPFLAGS+=-Wall -Wextra -DXCA_PREFIX=\"${xca_prefix}\" -DETC=\"@sysconfdir@\" -DDOCDIR=\"@docdir@\" @CXXFLAGS@
+CFLAGS+=-O2 -ggdb
+LIBS=@LIBS@
+
+MOC=@QT_MOC@
+UIC=@QT_UIC@
+RCC=@QT_RCC@
+LRELEASE=@QT_LRELEASE@
+LCONVERT=@QT_LCONVERT@
+
+CC=@CXX@
+STRIP=@STRIP@
+DOCTOOL=@DOCTOOL@
+MACDEPLOYQT=@MACDEPLOYQT@
+DARWIN=@DARWIN@
+ENABLE_DOC=@ENABLE_DOC@
+
+PACKAGE_TARNAME=@PACKAGE_TARNAME@
+HOST=linux
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+docdir=@docdir@
+htmldir=@htmldir@
+mandir=@mandir@
+bindir=@bindir@
+datarootdir=@datarootdir@
+xca_prefix=${datarootdir}/${PACKAGE_TARNAME}

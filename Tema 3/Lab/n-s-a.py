@@ -8,6 +8,7 @@ import base64
 import json
 from socket_class import SOCKET_SIMPLE_TCP
 
+
 # Parametros
 key_a_t = b'0123456789ABCDEF'
 BLOCK_SIZE_AES = 16
@@ -60,3 +61,37 @@ socket.cerrar()
 # COMPLETAR: CONTACTAR CON BOB, SEGUIR EL PROTOCOLO NEEDHAM-SCHROEDER
 #####################################################################
 
+
+socket = SOCKET_SIMPLE_TCP('127.0.0.1', 12345)
+socket.conectar()
+print("Se ha abierto la conexión")
+
+
+t_bt = bytearray.fromhex(t_bt)
+socket.enviar(t_bt)
+file = open("mensaje.txt", "wb")
+file.write(t_bt)
+file.close()
+
+
+datos = socket.recibir()
+descipher_aes_a_b = AES.new(t_k_ab, AES.MODE_ECB)
+b_random = unpad(descipher_aes_a_b.decrypt(datos), BLOCK_SIZE_AES)
+elem = bytearray(b_random)
+elem[7] = elem[7] - 1
+b_random = bytes(elem)
+
+
+cipher_aes_a_b = AES.new(t_k_ab, AES.MODE_ECB)
+msg_enc = cipher_aes_a_b.encrypt(pad(b_random, BLOCK_SIZE_AES))
+print("A -> B: ", msg_enc)
+socket.enviar(msg_enc)
+
+msg_enc = cipher_aes_a_b.encrypt(pad("Alice".encode("utf-8"), BLOCK_SIZE_AES))
+print("A -> B: E_AB(Alice)")
+socket.enviar(msg_enc)
+
+datos = socket.recibir()
+bob = unpad(descipher_aes_a_b.decrypt(datos), BLOCK_SIZE_AES).decode("utf-8")
+print("B -> A: E_AB(Bob)")
+socket.cerrar()
